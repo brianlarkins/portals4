@@ -197,6 +197,8 @@ static int me_append_or_search(PPEGBL ptl_handle_ni_t ni_handle,
     } else {
         if (search_op == PTL_SEARCH_ONLY)
             err = check_overflow_search_only((le_t *)me);
+        else if (search_op == PTL_ACTIVE_SEARCH_ONLY)
+            err = check_active_search_only((le_t *)me);
         else
             err = check_overflow_search_delete((le_t *)me);
 

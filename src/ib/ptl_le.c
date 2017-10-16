@@ -440,6 +440,72 @@ int check_overflow_search_only(le_t *le)
     return PTL_OK;
 }
 
+
+/**
+ * @brief Check whether the ME matches one or more messages on
+ * the priority list, using match bits as search criteria
+ *
+ * @param[in] le the list element to check.
+ *
+ * @return status
+ */
+int check_active_search_only(le_t *le){
+  me_t *me = (me_t *)le;
+  ni_t *ni = obj_to_ni(me);
+  pt_t *pt = &ni->pt[le->pt_index];
+  int found = 0;
+  me_t *mcur = NULL, *n = NULL;
+  ptl_event_t ev;
+  buf_t *buf;
+
+#ifdef WITH_UNORDERED_MATCHING
+  if(pt->options & PTL_PT_MATCH_UNORDERED){
+
+    PTL_FASTLOCK_LOCK(&pt->lock);
+    pt_me_hash_t *hashentry;
+    HASH_FIND(hh,pt->matchlist_ht,&me->match_bits,sizeof(ptl_match_bits_t),hashentry);
+
+    if(hashentry != NULL){
+      ev.type = PTL_EVENT_SEARCH;
+      ev.start = hashentry->match_entry->start;
+      ev.user_ptr = le->user_ptr;
+      ev.ni_fail_type = PTL_NI_OK;
+      send_target_event(le->eq, &ev);
+    } else { 
+      make_le_event(le,le->eq, PTL_EVENT_SEARCH, PTL_NI_NO_MATCH);
+    }
+
+    PTL_FASTLOCK_UNLOCK(&pt->lock);
+    return PTL_OK;
+  }
+#endif // WITH_UNORDERED_MATCHING
+
+  PTL_FASTLOCK_LOCK(&pt->lock);
+  list_for_each_entry_safe(mcur, n, &pt->priority_list, list) {
+    if ((mcur->match_bits | mcur->ignore_bits) == (me->match_bits | me->ignore_bits)) {
+      ev.type = PTL_EVENT_SEARCH;
+      ev.start = mcur->start;
+      ev.user_ptr = mcur->user_ptr;
+      found = 1;
+      break;
+    }
+  }
+  PTL_FASTLOCK_UNLOCK(&pt->lock);
+
+  if (le->eq && !(le->options & PTL_LE_EVENT_COMM_DISABLE)) {
+     if(found == 1){
+        ev.ni_fail_type = PTL_NI_OK;
+        send_target_event(le->eq, &ev);
+    } else {
+        make_le_event(le, le->eq, PTL_EVENT_SEARCH, PTL_NI_NO_MATCH);
+    }
+  }
+  ptl_warn("Cannot do active search if not using unordered matching");
+  return PTL_OK;
+}
+
+
+
 /**
  * @brief Search for matching entries in the unexpected and delete them.
  * @note Common code for LE/ME list elements.
