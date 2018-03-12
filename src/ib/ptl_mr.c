@@ -71,23 +71,26 @@ void mr_cleanup(void *arg)
 #endif
 
 #if WITH_TRANSPORT_IB
-//    PTL_FASTLOCK_LOCK(&mr->lock);
-//    if (mr->ibmr) {
-//        int err;
-//
-//        int count = 0;
-// 
-//         err = ibv_dereg_mr(mr->ibmr);
-//         if (err) {
-//            while (err && count++ < 50){
-//                err=ibv_dereg_mr(mr->ibmr);
-//            }
-//            if (err)
-//                ptl_warn("ibv_dereg_mr failed, ret = %d\n", err);
-//         }
-//        mr->ibmr = NULL;
-//    }
-//    PTL_FASTLOCK_UNLOCK(&mr->lock);
+    // skip if using Todd's RB cache patch
+    if (!use_rb_cache) {
+      PTL_FASTLOCK_LOCK(&mr->lock);
+      if (mr->ibmr) {
+        int err;
+
+        int count = 0;
+
+        err = ibv_dereg_mr(mr->ibmr);
+        if (err) {
+          while (err && count++ < 50){
+            err=ibv_dereg_mr(mr->ibmr);
+          }
+          if (err)
+            ptl_warn("ibv_dereg_mr failed, ret = %d\n", err);
+        }
+        mr->ibmr = NULL;
+      }
+      PTL_FASTLOCK_UNLOCK(&mr->lock);
+    }
 #endif
 
 #if WITH_TRANSPORT_SHMEM
@@ -339,7 +342,8 @@ int mr_lookup(ni_t *ni, struct ni_mr_tree *tree, void *start,
     mr = NULL;
 
     //if (global_umn_init == 1){
-    if (use_rb_cache == 1) {
+    // XXX Todd's patch or PTL_IGNORE_UMMUNOTIFY=1 
+    if ((use_rb_cache == 1) || (global_umn_init == 1)) {
 
         while (link) {
             mr = link;
@@ -532,31 +536,35 @@ void mr_init(ni_t *ni)
             global_umn_init = 1;
             global_umn_fd = open("/dev/ummunotify", O_RDONLY | O_NONBLOCK);
             if (global_umn_fd == -1) {
-                char *str;
+                char *str, *str2;
                 fprintf(stderr,
                         "WARNING: Ummunotify not found: Not using ummunotify can result in incorrect results download and install ummunotify from:\n http://support.systemfabricworks.com/downloads/ummunotify/ummunotify-v2.tar.bz2\n");
-                global_umn_init = 0;
-                use_rb_cache = 1;
-                return; // we are using Todd's ummunotify patch instead of workaround from here on
                 str = getenv("PTL_IGNORE_UMMUNOTIFY");
+                str2 = getenv("PTL_USE_RB_CACHE");
+                // use PTL_IGNORE_UMMUNOTIFY?
                 if (NULL != str && ( str[0] == 'y' || str[0] == 'Y' || str[0] == '1')) {
                     global_umn_init = 1;
                     global_umn_fake = 1;
                     global_umn_fd = open("/dev/null", O_RDONLY | O_NONBLOCK);
                     global_umn_counter = malloc(sizeof *(global_umn_counter));
                     *global_umn_counter = 0;
-                } 
-            }   
 
-            else {
-            global_umn_counter =
+                // use PTL_USE_RB_CACHE?
+                } else if (NULL != str2 && ( str2[0] == 'y' || str2[0] == 'Y' || str2[0] == '1')) {
+                  global_umn_init = 0;
+                  use_rb_cache = 1;
+                  return;
+                }
+
+            } else {
+              global_umn_counter =
                 mmap(NULL, sizeof *(global_umn_counter), PROT_READ, MAP_SHARED,
-                     global_umn_fd, 0);
-            if (global_umn_counter == MAP_FAILED) {
+                    global_umn_fd, 0);
+              if (global_umn_counter == MAP_FAILED) {
                 close(global_umn_fd);
                 global_umn_fd = -1;
                 return;
-            }
+              }
             }
 
             global_umn_watcher.data = NULL;
