@@ -651,6 +651,7 @@ static int tgt_get_match(buf_t *buf)
             }
             goto found_one;
         }
+        goto not_found;
     }
 #endif
     /* Check the priority list.
@@ -681,6 +682,8 @@ static int tgt_get_match(buf_t *buf)
             goto found_one;
         }
     }
+
+  not_found:
 
     /* Failed to match any elements */
     if (pt->options & PTL_PT_FLOWCTRL) {

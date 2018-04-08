@@ -487,8 +487,9 @@ static void process_ummunotify(EV_P_ ev_io *w, int revents)
         /* Read an event. */
         len = read(global_umn_fd, &ev, sizeof ev);
         if (len < 0 || len != sizeof ev) {
+          if (global_umn_fake != 1)
             WARN();
-            return;
+          return;
         }
         int i;
         for(i=0; i<global_ni_count; i++)
@@ -537,8 +538,6 @@ void mr_init(ni_t *ni)
             global_umn_fd = open("/dev/ummunotify", O_RDONLY | O_NONBLOCK);
             if (global_umn_fd == -1) {
                 char *str, *str2;
-                fprintf(stderr,
-                        "WARNING: Ummunotify not found: Not using ummunotify can result in incorrect results download and install ummunotify from:\n http://support.systemfabricworks.com/downloads/ummunotify/ummunotify-v2.tar.bz2\n");
                 str = getenv("PTL_IGNORE_UMMUNOTIFY");
                 str2 = getenv("PTL_USE_RB_CACHE");
                 // use PTL_IGNORE_UMMUNOTIFY?
@@ -554,6 +553,9 @@ void mr_init(ni_t *ni)
                   global_umn_init = 0;
                   use_rb_cache = 1;
                   return;
+                } else {
+                  fprintf(stderr,
+                       "WARNING: Ummunotify not found: Not using ummunotify can result in incorrect results download and install ummunotify from:\n http://support.systemfabricworks.com/downloads/ummunotify/ummunotify-v2.tar.bz2\n");
                 }
 
             } else {
