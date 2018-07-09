@@ -8,6 +8,7 @@
 #include "ptl_loc.h"
 
 #include "ummunotify.h"
+#include <unistd.h>
 
 #if !IS_PPE
 int global_umn_init=0;
@@ -184,7 +185,7 @@ static int mr_create(ni_t *ni, void *start, ptl_size_t length, mr_t **mr_p)
 #if WITH_ZERO_MRS
     //Fix for Qlogic InfiniPath and recent MOFED versions, that does not accept a NULL value for an ibv_mr_reg
     //REG 2014
-    if ((start == NULL || (uintptr_t)start % getpagesize() == 0) && (length == 0)) {
+    if ((start == NULL || (uintptr_t)start % sysconf(_SC_PAGE_SIZE) == 0) && (length == 0)) {
         uint64_t junk_value;
         start = &junk_value;
         end = start;
@@ -555,8 +556,10 @@ void mr_init(ni_t *ni)
                   return;
                 } else {
                   fprintf(stderr,
-                       "WARNING: Ummunotify not found: Not using ummunotify can result in incorrect results download and install ummunotify from:\n http://support.systemfabricworks.com/downloads/ummunotify/ummunotify-v2.tar.bz2\n");
-                }
+                      "WARNING: Ummunotify not found: Not using ummunotify can result in incorrect results download and install ummunotify from:\n  https://github.com/Portals4/ummunotify/ummunotify-v2.tar.gz \n");
+                  global_umn_init = 0;
+                  return;
+                }   
 
             } else {
               global_umn_counter =

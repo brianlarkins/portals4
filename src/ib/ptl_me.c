@@ -8,6 +8,7 @@
 #include "ptl_ct.h"
 
 #ifdef WITH_TRIG_ME_OPS
+void ct_check(ct_t *ct);
 static void post_trig_me(buf_t *buf, ct_t *me_ct);
 void do_trig_me_op(buf_t *buf, ct_t *ct);
 #endif
@@ -456,7 +457,7 @@ int _PtlMEUnlink(PPEGBL ptl_handle_me_t me_handle)
 
 
     if (me != NULL && pt != NULL){
-        while (pthread_spin_trylock(&pt->lock) != 0){
+        while (PTL_FASTLOCK_TRYLOCK(&pt->lock) != 0){
             usleep(500);
             if(me == NULL ){
                err = PTL_IN_USE;

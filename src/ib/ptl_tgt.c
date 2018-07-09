@@ -683,7 +683,9 @@ static int tgt_get_match(buf_t *buf)
         }
     }
 
+#ifdef WITH_UNORDERED_MATCHING
   not_found:
+#endif
 
     /* Failed to match any elements */
     if (pt->options & PTL_PT_FLOWCTRL) {
