@@ -5,6 +5,7 @@
  */
 #include "ptl_loc.h"
 
+extern int rankno;
 /**
  * @brief Target state names for debugging output.
  */
@@ -649,6 +650,10 @@ static int tgt_get_match(buf_t *buf)
             if (check_match(buf, buf->me)) {
               me_get(buf->me);
             }
+            ptl_process_t p;
+            p.phys.nid = hdr->h1.src_nid;
+            p.phys.pid = hdr->h1.src_pid;
+            //printf("%d: received message for %"PRIx64" from %d\n", rankno, mbits, p.rank);fflush(stdout);
             goto found_one;
         }
     }
@@ -697,6 +702,14 @@ static int tgt_get_match(buf_t *buf)
     return STATE_TGT_DROP;
 
   found_one:
+
+    //const req_hdr_t *hdr = (req_hdr_t *) buf->data;
+    //ptl_match_bits_t mbits = le64_to_cpu(hdr->match_bits);
+    //ptl_process_t p;
+    //p.phys.nid = hdr->h1.src_nid;
+    //p.phys.pid = hdr->h1.src_pid;
+    //printf("%d: received message for %"PRIx64" from %d\n", rankno, mbits, p.rank);fflush(stdout);
+    
     /* Check to see if we have permission for the operation */
     ni_fail = check_perm(buf, buf->le);
     if (ni_fail) {

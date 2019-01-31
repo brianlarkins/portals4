@@ -10,6 +10,7 @@
 #include "ptl_loc.h"
 #include "ptl_timer.h"
 
+extern int rankno;
 /* TODO make these unnecessary by queuing deferred operations */
 void ct_check(ct_t *ct);
 static void post_trig_ct(struct buf *buf, ct_t *trig_ct);
@@ -269,6 +270,7 @@ int _PtlCTCancelTriggered(PPEGBL ptl_handle_ct_t ct_handle)
 
     ct->info.interrupt = 1;
     ct_check(ct);
+    ct->info.interrupt = 0;
 
     err = PTL_OK;
     ct_put(ct);
@@ -520,6 +522,9 @@ void ct_check(ct_t *ct)
 #if WITH_TRANSPORT_UDP
                 buf->udp.i_am_prog_thread = 1;
 #endif
+                //req_hdr_t *hdr = (req_hdr_t *)buf->data;
+                //printf("%d: TRIGGER FIRING %p to %x on %d (count: %d thresh: %d)\n", 
+                //    rankno, ct, hdr->match_bits, buf->target.rank, ct->info.event.success, buf->ct_threshold);
                 err = process_init(buf);
                 if (unlikely(err))
                     ptl_warn("Error in processing initiator traffic\n");
