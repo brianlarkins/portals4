@@ -3,7 +3,9 @@
  *
  * Completion queue processing.
  */
+#define _GNU_SOURCE 1
 #include "ptl_loc.h"
+#include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -898,9 +900,22 @@ void process_recv_udp(ni_t *ni, buf_t *buf)
 static void *progress_thread(void *arg)
 {
     ni_t *ni = arg;
+    char *str;
 #if WITH_TRANSPORT_SHMEM
     int err = 0;
 #endif
+
+    str = getenv("PTL_BIND_PROGRESS");
+    if (NULL != str) {
+      long coreid = strtol(str, NULL, 10);
+      cpu_set_t mask;
+
+      CPU_ZERO(&mask);
+      CPU_SET(coreid, &mask);
+      if (sched_setaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+        ptl_warn("unable to set progress thread affinity: %s\n", strerror(errno));
+      }
+    }
 
     while (!ni->catcher_stop
 #if WITH_TRANSPORT_SHMEM
